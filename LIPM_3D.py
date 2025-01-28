@@ -13,7 +13,7 @@ class LIPM3D:
         b=D('1.0'),
         y_offset=D('0.0'),
         support_leg="right",
-        t_sup=D('1.0'),
+        t_sup=D('0.5'),
     ) -> None:
         self.left_foot_pos = left_foot_pos
         self.right_foot_pos = right_foot_pos
@@ -114,11 +114,11 @@ class LIPM3D:
         x_f, y_f = self.x_f, self.y_f
         vx_f, vy_f = self.vx_f, self.vy_f
 
-        self.x_f = c * x_i + (s / t_c) * x_i + (1 - c) * mod_p_x
-        self.vx_f = t_c * s * vx_i + c * vx_i + (-s / t_c) * mod_p_x
+        self.x_f = c * x_i + t_c * s * vx_i + (1 - c) * mod_p_x
+        self.vx_f = (s / t_c) * x_i + c * vx_i + (-s / t_c) * mod_p_x
 
-        self.y_f = c * y_i + (s / t_c) * y_i + (1 - c) * mod_p_y
-        self.vy_f = t_c * s * vy_i + c * vy_i + (-s / t_c) * mod_p_y
+        self.y_f = c * y_i + t_c * s * vy_i + (1 - c) * mod_p_y
+        self.vy_f = (s / t_c) * y_i + c * vy_i + (-s / t_c) * mod_p_y
 
         self.x_i = x_f
         self.vx_i = vx_f
@@ -193,13 +193,14 @@ class LIPM3D:
         vx_d, vy_d = self.vx_d, self.vy_d
         a, b = self.a, self.b
 
-        d = a * ((c - 1) ** 2) + b * ((s / t_c) ** 2)
+        d = a * (c - 1) ** 2 + b * (s / t_c) ** 2
 
         self.mod_p_x = (-(a * (c - 1) / d) * (x_d - c * x_i - t_c * s * vx_i)) - (
-            -((b * s) / (t_c * d)) * (vx_d - (s / t_c) * x_i - c * vx_i)
+            ((b * s) / (t_c * d)) * (vx_d - (s / t_c) * x_i - c * vx_i)
         )
+
         self.mod_p_y = (-(a * (c - 1) / d) * (y_d - c * y_i - t_c * s * vy_i)) - (
-            -((b * s) / (t_c * d)) * (vy_d - (s / t_c) * y_i - c * vy_i)
+            ((b * s) / (t_c * d)) * (vy_d - (s / t_c) * y_i - c * vy_i)
         )
 
     def switch_support_leg(self) -> None:
@@ -227,37 +228,37 @@ class LIPM3D:
         self.switch_support_leg()
 
     def calculate_real_time_com_state(self):
-        t, t_c = self.t, self.t_c
+        t, t_sup = self.t, self.t_sup
         x_i, y_i = self.x_i, self.y_i
         vx_i, vy_i = self.vx_i, self.vy_i
         mod_p_x, mod_p_y = self.mod_p_x, self.mod_p_y
 
         self.x_t = (
-            (x_i - mod_p_x) * (np.cosh((t % t_c) / t_c))
-            + t_c * vx_i * np.sinh((t % t_c) / t_c)
+            (x_i - mod_p_x) * D(np.cosh(float(t % t_sup) / float(t_sup)))
+            + t_sup * vx_i * D(np.sinh(float(t % t_sup) / float(t_sup)))
             + mod_p_x
         )
-        self.vx_t = ((x_i - mod_p_x) / t_c) * np.sinh((t % t_c) / t_c) + vx_i * np.cosh(
-            (t % t_c) / t_c
-        )
+        self.vx_t = ((x_i - mod_p_x) / t_sup) * D(
+            np.sinh(float(t % t_sup) / float(t_sup))
+        ) + vx_i * D(np.cosh(float(t % t_sup) / float(t_sup)))
 
         self.y_t = (
-            (y_i - mod_p_y) * (np.cosh((t % t_c) / t_c))
-            + t_c * vy_i * np.sinh((t % t_c) / t_c)
+            (y_i - mod_p_y) * D(np.cosh(float(t % t_sup) / float(t_sup)))
+            + t_sup * vy_i * D(np.sinh(float(t % t_sup) / float(t_sup)))
             + mod_p_y
         )
-        self.vy_t = ((y_i - mod_p_y) / t_c) * np.sinh((t % t_c) / t_c) + vy_i * np.cosh(
-            (t % t_c) / t_c
-        )
+        self.vy_t = ((y_i - mod_p_y) / t_sup) * D(
+            np.sinh(float(t % t_sup) / float(t_sup))
+        ) + vy_i * D(np.cosh(float(t % t_sup) / float(t_sup)))
 
     def step(self, dt, input=[D('0'), D('0'), D('0')]) -> None:
-        self.t += dt
-
-        t, t_c = self.t, self.t_c
+        t, t_sup = self.t, self.t_sup
         n = self.n
         s_x_1, s_y_1, s_theta_1 = self.s_x_1, self.s_y_1, self.s_theta_1
 
-        if t >= t_c * n:
+        self.t += dt
+
+        if t >= t_sup * n:
             self.n += 1
 
             self.s_x, self.s_y, self.s_theta = s_x_1, s_y_1, s_theta_1
@@ -270,6 +271,7 @@ class LIPM3D:
     def print_info(self) -> None:
         print("------------------------------------------------------------")
         print(f"Time : {self.t}")
+        print(f"Iteration : {self.n}")
         print(f"Support leg : {self.support_leg}")
         print(f"Left foot pos : {self.left_foot_pos}")
         print(f"Right foot pos : {self.right_foot_pos}")
@@ -281,4 +283,7 @@ class LIPM3D:
         print(f"Current COM state : {np.array([self.x_t, self.y_t, self.vx_t, self.vy_t])}")
         print(f"Final COM state : {np.array([self.x_f, self.y_f, self.vx_f, self.vy_f])}")
         print(f"Desired COM state : {np.array([self.x_d, self.y_d, self.vx_d, self.vy_d])}")
+        print(f"C : {self.c}")
+        print(f"S : {self.s}")
+        print(f"Tc : {self.t_c}")
         print("------------------------------------------------------------")
