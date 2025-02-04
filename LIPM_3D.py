@@ -26,13 +26,13 @@ class LIPM3D:
         # Time for non support leg be in swing state
         self.t_sup = t_sup
 
-        # Foot location at end of step
-        self.mod_p_x = self.get_support_leg()[0]
-        self.mod_p_y = self.get_support_leg()[1]
-
         # Foot location at start of step
         self.p_x = self.get_support_leg()[0]
         self.p_y = self.get_support_leg()[1]
+
+        # Foot location at end of step
+        self.mod_p_x = self.p_x
+        self.mod_p_y = self.p_y
 
         # Weight for mod_p evaluation function
         self.a = a
@@ -51,21 +51,21 @@ class LIPM3D:
         self.walk_vy = D("0.0")
 
         # COM state at start of step
-        self.x_i = self.get_support_leg()[0]
+        self.x_i = self.p_x
         self.vx_i = D("0.0")
-        self.y_i = self.get_support_leg()[1]
+        self.y_i = self.p_y
         self.vy_i = D("0.0")
 
         # COM state in real time
-        self.x_t = self.get_support_leg()[0]
+        self.x_t = self.p_x
         self.vx_t = D("0.0")
-        self.y_t = self.get_support_leg()[1]
+        self.y_t = self.p_y
         self.vy_t = D("0.0")
 
         # COM target state
-        self.x_d = D("0.0")
+        self.x_d = self.p_x
         self.vx_d = D("0.0")
-        self.y_d = D("0.0")
+        self.y_d = self.p_y
         self.vy_d = D("0.0")
 
         # Walk parameters
@@ -132,10 +132,10 @@ class LIPM3D:
 
         theta_c = np.cos(float(s_theta))
         theta_s = np.sin(float(s_theta))
-        if self.support_leg == "left":
+        if self.support_leg == "right":
             self.p_x += D(theta_c) * s_x - D(theta_s) * s_y
             self.p_y += D(theta_s) * s_x + D(theta_c) * s_y
-        elif self.support_leg == "right":
+        elif self.support_leg == "left":
             self.p_x += D(theta_c) * s_x + D(theta_s) * s_y
             self.p_y += D(theta_s) * s_x - D(theta_c) * s_y
 
@@ -153,12 +153,12 @@ class LIPM3D:
 
         theta_c = np.cos(float(s_theta_1))
         theta_s = np.sin(float(s_theta_1))
-        if self.support_leg == "left":
+        if self.support_leg == "right":
             self.walk_x = D(theta_c) * s_x_1 / D("2.0") + \
                 D(theta_s) * s_y_1 / D("2.0")
             self.walk_y = D(theta_s) * s_x_1 / D("2.0") - \
                 D(theta_c) * s_y_1 / D("2.0")
-        elif self.support_leg == "right":
+        elif self.support_leg == "left":
             self.walk_x = D(theta_c) * s_x_1 / D("2.0") - \
                 D(theta_s) * s_y_1 / D("2.0")
             self.walk_y = D(theta_s) * s_x_1 / D("2.0") + \
@@ -206,20 +206,10 @@ class LIPM3D:
         )
 
     def switch_support_leg(self) -> None:
-        # x_i, y_i = self.x_i, self.y_i
-        # right_foot_pos, left_foot_pos = self.right_foot_pos, self.left_foot_pos
-
         if self.support_leg == "right":
             self.support_leg = "left"
-            # self.x_f = x_i + left_foot_pos[0] - right_foot_pos[0]
-            # self.y_f = y_i + left_foot_pos[1] - right_foot_pos[1]
         elif self.support_leg == "left":
             self.support_leg = "right"
-        #     self.x_f = x_i + right_foot_pos[0] - left_foot_pos[0]
-        #     self.y_f = y_i + right_foot_pos[1] - left_foot_pos[1]
-        #
-        # self.vx_i = self.vx_f
-        # self.vy_i = self.vy_f
 
     def walk_pattern_gen(self) -> None:
         self.calculate_next_com_state()

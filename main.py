@@ -11,8 +11,8 @@ from visual import LIPM3D_Visual
 
 
 def main():
-    left_foot = np.array([D('0.0'), D('0.1'), D('0.0')])
-    right_foot = np.array([D('0.0'), D('-0.1'), D('0.0')])
+    left_foot = np.array([D('0.0'), D('-0.1'), D('0.0')])
+    right_foot = np.array([D('0.0'), D('0.1'), D('0.0')])
     t_sup = D('0.5')
     z_c = D('0.8')
     x_speed = D('0.1')

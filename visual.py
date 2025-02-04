@@ -23,19 +23,15 @@ class LIPM3D_Visual:
         ax.set_xlabel("x (m)")
         ax.set_ylabel("y (m)")
 
-        (mod_p,) = ax.plot(lipm.mod_p_x, lipm.mod_p_y, "o", color="gray")
-        (left_foot_pos,) = ax.plot(
-            lipm.left_foot_pos[0],
-            lipm.left_foot_pos[1],
-            "o",
-            color="blue" if lipm.support_leg == "left" else "black"
-        )
-        (right_foot_pos,) = ax.plot(
-            lipm.right_foot_pos[0],
-            lipm.right_foot_pos[1],
-            "o",
-            color="blue" if lipm.support_leg == "right" else "black"
-        )
+        # x_t_history.append((lipm.x_t, lipm.y_t))
+        # for (x_t, y_t) in x_t_history:
+        #     ax.plot(
+        #         x_t,
+        #         y_t,
+        #         "o",
+        #         color="red",
+        #     )
+
         (com_init,) = ax.plot(
             lipm.x_i,
             lipm.y_i,
@@ -43,15 +39,6 @@ class LIPM3D_Visual:
             color="brown",
             label=str(float(lipm.t))
         )
-        x_t_history.append((lipm.x_t, lipm.y_t))
-        # for (x_t, y_t) in x_t_history:
-        #     bx.plot(
-        #         x_t,
-        #         y_t,
-        #         "o",
-        #         color="red",
-        #     )
-        # print((lipm.mod_p_y - lipm.start_swing_foot[1]))
         (com_pos,) = ax.plot(
             lipm.x_t,
             lipm.y_t,
@@ -59,6 +46,21 @@ class LIPM3D_Visual:
             color="red",
             label=str(float(lipm.t))
         )
+
+        (mod_p,) = ax.plot(lipm.mod_p_x, lipm.mod_p_y, "o", color="gray")
+        (left_foot_pos,) = ax.plot(
+            lipm.left_foot_pos[0],
+            lipm.left_foot_pos[1],
+            "o",
+            color="aqua" if lipm.support_leg == "left" else "black"
+        )
+        (right_foot_pos,) = ax.plot(
+            lipm.right_foot_pos[0],
+            lipm.right_foot_pos[1],
+            "o",
+            color="blue" if lipm.support_leg == "right" else "black"
+        )
+        # print((lipm.mod_p_y - lipm.start_swing_foot[1]))
 
         dist = math.sqrt(float(lipm.right_foot_pos[0]-lipm.left_foot_pos[0])**2 + float(lipm.right_foot_pos[1] - lipm.left_foot_pos[1])**2)
         print(dist)
