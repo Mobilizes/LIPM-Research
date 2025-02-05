@@ -1,3 +1,5 @@
+import math
+
 from decimal import Decimal as D
 
 import numpy as np
@@ -115,6 +117,11 @@ class LIPM3D:
         self.c = np.cosh(t_sup / t_c)
         self.s = np.cosh(t_sup / t_c)
 
+    def get_distance_between_legs(self) -> D:
+        return D(math.sqrt(
+            float(self.right_foot_pos[0] - self.left_foot_pos[0])**2 +
+            float(self.right_foot_pos[1] - self.left_foot_pos[1])**2))
+
     # Step 3
     def calculate_next_com_state(self) -> None:
         x_t, y_t = self.x_t, self.y_t
@@ -130,6 +137,7 @@ class LIPM3D:
     def calculate_new_foot_place(self) -> None:
         s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
 
+        # TODO: this formula cannot stepping turn in place, find a new formula
         theta_c = np.cos(float(s_theta))
         theta_s = np.sin(float(s_theta))
         if self.support_leg == "right":
@@ -261,6 +269,7 @@ class LIPM3D:
 
         progress_t = 1 + (t - t_sup * n) / t_sup
 
+        # TODO: update z still broken
         # update_z = z_c - abs(progress_t / D(2.0) - z_c)
         update_z = D("0.0")
         update_swing = np.array([mod_p_x, mod_p_y, update_z]) - start_swing_leg
@@ -276,20 +285,15 @@ class LIPM3D:
         self.s_x_1, self.s_y_1, self.s_theta_1 = input
 
     def update_walk_parameter(self) -> None:
+        """
+        Run only at start of new step, before walk pattern generation
+        """
         x_speed, y_speed, a_speed = self.x_speed, self.y_speed, self.a_speed
-        s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
         s_x_1, s_y_1, s_theta_1 = self.s_x_1, self.s_y_1, self.s_theta_1
         y_offset = self.y_offset
 
         # Update new x walk parameter
         self.s_x_1 = x_speed
-
-        # Update new y walk parameter
-        self.s_y_1 = y_offset * D("2.0")
-        if s_y_1 < y_offset * D("2.0"):
-            self.s_y_1 += y_speed
-        else:
-            self.s_y_1 -= y_speed
 
         # Update new a (theta) walk parameter
         def wrap(val, min, max):
@@ -298,13 +302,21 @@ class LIPM3D:
 
             return min + ((min_max + (min_val % min_max)) % min_max)
 
-        # self.s_theta_1 = wrap()
+        self.s_theta_1 = wrap(s_theta_1 + a_speed, -D(np.pi), D(np.pi))
+
+        # Update new y walk parameter
+        dist = self.get_distance_between_legs()
+        self.s_y_1 = y_offset * D("2.0")
+        if s_y_1 < y_offset * D("1.0"):
+            self.s_y_1 += y_speed
+        else:
+            self.s_y_1 -= y_speed
+
 
         # Update walk parameter iteration
         self.s_x = s_x_1
         self.s_y = s_y_1
         self.s_theta = s_theta_1
-
 
     def step(self, dt) -> None:
         t = self.t
@@ -322,6 +334,7 @@ class LIPM3D:
             # print(self.x_t)
             # print(self.y_t)
 
+            self.update_walk_parameter()
             self.walk_pattern_gen()
             self.switch_support_leg()
 

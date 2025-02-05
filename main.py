@@ -51,13 +51,20 @@ def main():
         # lipm_history.append(copy.deepcopy(lipm))
         # if lipm.t % lipm.t_sup == D('0.0'):
         if lipm.n != n:
-            lipm.set_walk_parameter(
-                (x_speed, lipm.y_offset * 2 + next(cycle_gen), a_speed))
+            # lipm.set_walk_parameter(
+            #     (x_speed, lipm.y_offset * 2 + next(cycle_gen), a_speed))
+            lipm.x_speed = x_speed
+            lipm.y_speed = y_speed
+            lipm.a_speed = a_speed
         lipm_history.append(copy.deepcopy(lipm))
 
     x_t_history = []
     for i in lipm_history:
-        LIPM3D_Visual(i).project_walk_pattern(x_t_history, 2)
+        vis = LIPM3D_Visual(i)
+        vis.project_3d_gait(1)
+        vis.project_walk_pattern(x_t_history, 2)
+        # dist = math.sqrt(float(i.right_foot_pos[0]-i.left_foot_pos[0])**2 + float(i.right_foot_pos[1] - i.left_foot_pos[1])**2)
+        # print(f"{dist}, {i.s_theta_1}, {i.s_theta_1 / D(np.pi) * D("180.0")}")
 
 
 if __name__ == "__main__":
