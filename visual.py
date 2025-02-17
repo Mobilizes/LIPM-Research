@@ -1,15 +1,20 @@
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import numpy as np
+from decimal import Decimal as D
 
 from LIPM_3D import LIPM3D
 
 
 class LIPM3D_Visual:
-    def __init__(self, lipm: LIPM3D, nrow=2, ncol=1):
+    def __init__(self, lipm: LIPM3D, nrow=2, ncol=2):
         self.com_history = []
         self.lipm = lipm
         self.nrow = nrow
         self.ncol = ncol
+
+        self.curr_azim = -60
+        self.curr_elev = 30
 
     def project_3d_gait(self, index):
         lipm = self.lipm
@@ -19,8 +24,17 @@ class LIPM3D_Visual:
 
         ax = fig.add_subplot(self.nrow, self.ncol, index, projection="3d")
 
-        ax.set_xlim(0, 1)
-        ax.set_ylim(-0.5, 0.5)
+        def on_release(event):
+            """Print previous and new angles after rotation."""
+            self.curr_azim, self.curr_elev = ax.azim, ax.elev
+
+        ax.azim = self.curr_azim
+        ax.elev = self.curr_elev
+
+        fig.canvas.mpl_connect('button_release_event', on_release)
+
+        ax.set_xlim(float(lipm.x_t) - 1.0, float(lipm.x_t) + 1.0)
+        ax.set_ylim(float(lipm.y_t) - 0.5, float(lipm.y_t) + 0.5)
 
         (left_leg,) = ax.plot(
             [float(lipm.x_t), float(lipm.left_foot_pos[0])],
@@ -47,11 +61,69 @@ class LIPM3D_Visual:
         )
 
         (com_traj,) = ax.plot(
-            [float(row[0]) for row in com_history],
-            [float(row[1]) for row in com_history],
-            zs=0,
+            [float(row[0][0]) for row in com_history],
+            [float(row[0][1]) for row in com_history],
+            zs=0.0,
             color="red"
         )
+
+    def visualize_com_vel_trajectory(self, index, dt):
+        com_history = self.com_history
+
+        fig = plt.figure("LIPM")
+
+        ax = fig.add_subplot(self.nrow, self.ncol, index)
+
+        ax.set_title("Velocity")
+
+        t = np.arange(stop=dt*len(com_history), step=dt)
+        x = [float(row[1][0]) for row in com_history]
+        y = [float(row[1][1]) for row in com_history]
+
+        (vel_traj_x,) = ax.plot(
+            t,
+            x,
+            label="x"
+        )
+
+        (vel_traj_y,) = ax.plot(
+            t,
+            y,
+            label="y"
+        )
+
+        cons = 2
+        left_lim = max(0, t[-1] - cons)
+        ax.set_xlim(left_lim, left_lim + 2*cons)
+
+        plt.legend()
+
+    def visualize_com_acc_trajectory(self, index, dt):
+        com_history = self.com_history
+
+        fig = plt.figure("LIPM")
+
+        ax = fig.add_subplot(self.nrow, self.ncol, index)
+
+        ax.set_title("Acceleration")
+
+        t = np.arange(stop=dt*len(com_history), step=dt)
+        x = [float(row[2][0]) for row in com_history]
+        y = [float(row[2][1]) for row in com_history]
+
+        (acc_traj_x,) = ax.plot(
+            t,
+            x,
+            label="x"
+        )
+
+        (acc_traj_y,) = ax.plot(
+            t,
+            y,
+            label="y"
+        )
+
+        plt.legend()
 
     def project_walk_pattern(self, index):
         lipm = self.lipm
@@ -64,22 +136,6 @@ class LIPM3D_Visual:
         ax.set_xlabel("x (m)")
         ax.set_ylabel("y (m)")
 
-        # com_history.append((lipm.x_t, lipm.y_t))
-        # for (x_t, y_t) in x_t_history:
-        #     ax.plot(
-        #         x_t,
-        #         y_t,
-        #         "o",
-        #         color="red",
-        #     )
-
-        (com_init,) = ax.plot(
-            lipm.x_i,
-            lipm.y_i,
-            "o",
-            color="brown",
-            label=str(float(lipm.t))
-        )
         (com_pos,) = ax.plot(
             lipm.x_t,
             lipm.y_t,
@@ -88,8 +144,8 @@ class LIPM3D_Visual:
             label=str(float(lipm.t))
         )
         (com_traj,) = ax.plot(
-            [float(row[0]) for row in com_history],
-            [float(row[1]) for row in com_history],
+            [float(row[0][0]) for row in com_history],
+            [float(row[0][1]) for row in com_history],
             color="red"
         )
 
@@ -106,10 +162,6 @@ class LIPM3D_Visual:
             "o",
             color="blue" if lipm.support_leg == "right" else "black"
         )
-        # print((lipm.mod_p_y - lipm.start_swing_foot[1]))
-
-        # dist = math.sqrt(float(lipm.right_foot_pos[0]-lipm.left_foot_pos[0])**2 + float(lipm.right_foot_pos[1] - lipm.left_foot_pos[1])**2)
-        # print(f"{dist}, {lipm.s_theta_1}, {lipm.s_theta_1 / D(np.pi) * D("180.0")}")
 
         ax.set_xlim(-0.5, 2.0)
         ax.set_ylim(-0.5, 0.5)

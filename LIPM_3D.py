@@ -5,6 +5,24 @@ from decimal import Decimal as D
 import numpy as np
 
 
+def compute_coefficients(p_0, v_0, a_0, v_f, a_f, t):
+    a0 = p_0
+    a1 = v_0
+    a2 = a_0 / 2
+
+    A = np.array([
+        [3 * t**2, 4 * t**3],
+        [6 * t, 12 * t**2]
+    ])
+    b = np.array([
+        v_f - a1 - 2 * a2 * t,
+        a_f - 2 * a2
+    ])
+
+    a3, a4 = np.linalg.solve(A, b)
+    return a0, a1, a2, a3, a4
+
+
 class LIPM3D:
     def __init__(
         self,
@@ -16,17 +34,23 @@ class LIPM3D:
         y_offset=D("0.0"),
         support_leg="right",
         t_sup=D("0.5"),
+        t_dbl=D("0.0")
     ) -> None:
         self.left_foot_pos = left_foot_pos
         self.right_foot_pos = right_foot_pos
         self.y_offset = y_offset
         self.support_leg = support_leg  # left / both / right
+        self.previous_support_leg = "both"
 
         # Swing leg position at start of step
         self.start_swing_foot = self.get_swing_leg()
 
         # Time for non support leg be in swing state
         self.t_sup = t_sup
+
+        # Time for COM to transfer support leg in double support phase
+        # 0 means double support disabled
+        self.t_dbl = t_dbl
 
         # Foot location at start of step
         self.p_x = self.get_support_leg()[0]
@@ -42,8 +66,9 @@ class LIPM3D:
 
         self.t = D("0.0")
 
+        self.g = D("9.81")
         self.z_c = z_c
-        self.t_c = np.sqrt(self.z_c / D("9.81"))
+        self.t_c = np.sqrt(self.z_c / self.g)
         self.c = D(np.cosh(float(self.t_sup / self.t_c)))
         self.s = D(np.sinh(float(self.t_sup / self.t_c)))
 
@@ -55,14 +80,26 @@ class LIPM3D:
         # COM state at start of step
         self.x_i = self.p_x
         self.vx_i = D("0.0")
+        self.ay_i = D("0.0")
         self.y_i = self.p_y
         self.vy_i = D("0.0")
+        self.ay_i = D("0.0")
 
         # COM state in real time
         self.x_t = self.p_x
         self.vx_t = D("0.0")
+        self.ay_t = D("0.0")
         self.y_t = self.p_y
         self.vy_t = D("0.0")
+        self.ay_t = D("0.0")
+
+        # COM state at end of step
+        self.x_f = self.p_x
+        self.vx_f = D("0.0")
+        self.ax_f = D("0.0")
+        self.y_f = self.p_y
+        self.vy_f = D("0.0")
+        self.ay_f = D("0.0")
 
         # COM target state
         self.x_d = self.p_x
@@ -214,10 +251,18 @@ class LIPM3D:
         )
 
     def switch_support_leg(self) -> None:
-        if self.support_leg == "right":
-            self.support_leg = "left"
-        elif self.support_leg == "left":
-            self.support_leg = "right"
+        support_leg = self.support_leg
+        previous_support_leg = self.previous_support_leg
+
+        if self.t_dbl == D("0.0"):
+            self.support_leg = "left" if support_leg == "right" else "right"
+        else:
+            self.previous_support_leg = support_leg
+
+            if support_leg != "both":
+                self.support_leg = "both"
+            else:
+                self.support_leg = "left" if previous_support_leg == "right" else "right"
 
     def walk_pattern_gen(self) -> None:
         self.calculate_next_com_state()
@@ -226,17 +271,18 @@ class LIPM3D:
         self.calculate_target_com_state()
         self.calculate_modified_foot_placement()
 
-    def calculate_real_time_com_state(self) -> None:
-        t, t_sup, t_c = self.t, self.t_sup, self.t_c
+    def analytical_real_time_com_state(self) -> None:
+        t, t_sup, t_c, t_dbl = self.t, self.t_sup, self.t_c, self.t_dbl
         x_i, y_i = self.x_i, self.y_i
         vx_i, vy_i = self.vx_i, self.vy_i
         mod_p_x, mod_p_y = self.mod_p_x, self.mod_p_y
+        g, z_c = self.g, self.z_c
         n = self.n
 
-        t %= t_sup
+        t %= t_sup + t_dbl
 
-        if self.t >= t_sup * n:
-            t += t_sup
+        if self.t >= (t_sup + t_dbl) * n:
+            t += t_sup + t_dbl
 
         self.x_t = (
             (x_i - mod_p_x) * D(np.cosh(float(t) / float(t_c)))
@@ -246,6 +292,7 @@ class LIPM3D:
         self.vx_t = ((x_i - mod_p_x) / t_c) * D(
             np.sinh(float(t) / float(t_c))
         ) + vx_i * D(np.cosh(float(t) / float(t_c)))
+        self.ax_t = g / z_c * (self.x_t - mod_p_x)
 
         self.y_t = (
             (y_i - mod_p_y) * D(np.cosh(float(t) / float(t_c)))
@@ -255,10 +302,46 @@ class LIPM3D:
         self.vy_t = ((y_i - mod_p_y) / t_c) * D(
             np.sinh(float(t) / float(t_c))
         ) + vy_i * D(np.cosh(float(t) / float(t_c)))
+        self.ay_t = g / z_c * (self.y_t - mod_p_y)
 
-        # print("From calculate_real_time_com_state")
-        # print(self.x_t)
-        # print(self.y_t)
+    def double_support_phase_com_state(self) -> None:
+        t, t_sup, t_dbl = self.t, self.t_sup, self.t_dbl
+
+        x_t, y_t = self.x_t, self.y_t
+        vx_t, vy_t = self.vx_t, self.vy_t
+        ax_t, ay_t = self.ax_t, self.ay_t
+
+        vx_f, vy_f = self.vx_f, self.vy_f
+        ax_f, ay_f = self.ax_f, self.ay_f
+
+        if t_dbl == D("0.0"):
+            return
+
+        t %= (t_sup + t_dbl)
+
+        if t < t_sup:
+            return
+
+        t -= t_sup
+
+        a_x0, a_x1, a_x2, a_x3, a_x4 = compute_coefficients(
+            x_t, vx_t, ax_t, vx_f, ax_f, t_dbl)
+        a_y0, a_y1, a_y2, a_y3, a_y4 = compute_coefficients(
+            y_t, vy_t, ay_t, vy_f, ay_f, t_dbl)
+
+        self.x_t = a_x0 + a_x1 * t + a_x2 * t**2 + a_x3 * t**3 + a_x4 * t**4
+        self.vx_t = a_x1 + 2 * a_x2 * t + 3 * a_x3 * t**2 + 4 * a_x4 * t**3
+        self.ax_t = 2 * a_x2 + 6 * a_x3 * t + 12 * a_x4 * t**2
+
+        self.y_t = a_y0 + a_y1 * t + a_y2 * t**2 + a_y3 * t**3 + a_y4 * t**4
+        self.vy_t = a_y1 + 2 * a_y2 * t + 3 * a_y3 * t**2 + 4 * a_y4 * t**3
+        self.ay_t = 2 * a_y2 + 6 * a_y3 * t + 12 * a_y4 * t**2
+
+    def calculate_real_time_com_state(self) -> None:
+        if self.support_leg != "both":
+            self.analytical_real_time_com_state()
+        else:
+            self.double_support_phase_com_state()
 
     def move_swing_leg(self) -> None:
         start_swing_leg = self.start_swing_foot
@@ -270,8 +353,8 @@ class LIPM3D:
         progress_t = 1 + (t - t_sup * n) / t_sup
 
         # TODO: update z still broken
-        # update_z = z_c - abs(progress_t / D(2.0) - z_c)
-        update_z = D("0.0")
+        update_z = z_c - abs((progress_t - 1) / D('2.0') - z_c)
+        # update_z = D("0.0")
         update_swing = np.array([mod_p_x, mod_p_y, update_z]) - start_swing_leg
         update_swing = [val * progress_t for val in update_swing]
 
@@ -305,27 +388,57 @@ class LIPM3D:
         self.s_theta_1 = wrap(s_theta_1 + a_speed, -D(np.pi), D(np.pi))
 
         # Update new y walk parameter
-        dist = self.get_distance_between_legs()
         self.s_y_1 = y_offset * D("2.0")
-        if s_y_1 < y_offset * D("1.0"):
+        if s_y_1 < y_offset * D("2.0"):
             self.s_y_1 += y_speed
         else:
             self.s_y_1 -= y_speed
-
 
         # Update walk parameter iteration
         self.s_x = s_x_1
         self.s_y = s_y_1
         self.s_theta = s_theta_1
 
+    def update_end_com_state(self) -> None:
+        t_sup = self.t_sup
+        t_c = self.t_c
+
+        x_i, y_i = self.x_i, self.y_i
+        vx_i, vy_i = self.vx_i, self.vy_i
+
+        x_f, y_f = self.x_f, self.y_f
+
+        mod_p_x, mod_p_y = self.mod_p_x, self.mod_p_y
+
+        g, z_c = self.g, self.z_c
+
+        self.x_f = (
+            (x_i - mod_p_x) * D(np.cosh(float(t_sup) / float(t_c)))
+            + t_c * vx_i * D(np.sinh(float(t_sup) / float(t_c)))
+            + mod_p_x
+        )
+        self.vx_f = ((x_i - mod_p_x) / t_c) * D(
+            np.sinh(float(t_sup) / float(t_c))
+        ) + vx_i * D(np.cosh(float(t_sup) / float(t_c)))
+        self.ax_f = g / z_c * (x_f - mod_p_x)
+
+        self.y_f = (
+            (y_i - mod_p_y) * D(np.cosh(float(t_sup) / float(t_c)))
+            + t_c * vy_i * D(np.sinh(float(t_sup) / float(t_c)))
+            + mod_p_y
+        )
+        self.vy_f = ((y_i - mod_p_y) / t_c) * D(
+            np.sinh(float(t_sup) / float(t_c))
+        ) + vy_i * D(np.cosh(float(t_sup) / float(t_c)))
+        self.ay_f = g / z_c * (y_f - mod_p_y)
+
     def step(self, dt) -> None:
         t = self.t
         t_sup, n = self.t_sup, self.n
+        t_dbl = self.t_dbl
 
         self.t += dt
 
-        # print(abs(t_sup * n - t))
-        # print(abs(t_sup * n - t) <= D("0.01"))
         if t >= t_sup * n:
             # print("HELLO")
             self.n += D("1.0")
@@ -336,6 +449,7 @@ class LIPM3D:
 
             self.update_walk_parameter()
             self.walk_pattern_gen()
+            self.update_end_com_state()
             self.switch_support_leg()
 
             self.start_swing_foot = self.get_swing_leg()
