@@ -123,6 +123,10 @@ class LIPM3D_Visual:
             label="y"
         )
 
+        cons = 2
+        left_lim = max(0, t[-1] - cons)
+        ax.set_xlim(left_lim, left_lim + 2*cons)
+
         plt.legend()
 
     def project_walk_pattern(self, index):
@@ -141,7 +145,7 @@ class LIPM3D_Visual:
             lipm.y_t,
             "o",
             color="red",
-            label=str(float(lipm.t))
+            label=str(float(lipm.t + lipm.t_s))
         )
         (com_traj,) = ax.plot(
             [float(row[0][0]) for row in com_history],
@@ -163,7 +167,22 @@ class LIPM3D_Visual:
             color="blue" if lipm.support_leg == "right" else "black"
         )
 
-        ax.set_xlim(-0.5, 2.0)
-        ax.set_ylim(-0.5, 0.5)
+        # cons = D("0.5")
+        #
+        # x_min = min(lipm.x_t, lipm.left_foot_pos[0], lipm.right_foot_pos[0])
+        # x_max = max(lipm.x_t, lipm.left_foot_pos[0], lipm.right_foot_pos[0])
+        #
+        # y_min = min(lipm.y_t, lipm.left_foot_pos[1], lipm.right_foot_pos[1])
+        # y_max = max(lipm.y_t, lipm.left_foot_pos[1], lipm.right_foot_pos[1])
+        #
+        # ax.set_xlim(x_min - cons, x_max + cons)
+        # ax.set_xlim(y_min - cons, y_max + cons)
 
         plt.legend()
+
+    def update_lipm(self, dt):
+        self.lipm.step(dt)
+
+        lipm = self.lipm
+        self.com_history.append(
+            ((lipm.x_t, lipm.y_t), (lipm.vx_t, lipm.vy_t), (lipm.ax_t, lipm.ay_t)))

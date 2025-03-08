@@ -5,22 +5,29 @@ from decimal import Decimal as D
 import numpy as np
 
 
-def compute_coefficients(p_0, v_0, a_0, v_f, a_f, t):
+def compute_coefficients(p_0, v_0, a_0, v_f, a_f, t_dbl):
+    p_0 = float(p_0)
+    v_0 = float(v_0)
+    a_0 = float(a_0)
+    v_f = float(v_f)
+    a_f = float(a_f)
+    t_dbl = float(t_dbl)
+
     a0 = p_0
     a1 = v_0
     a2 = a_0 / 2
 
     A = np.array([
-        [3 * t**2, 4 * t**3],
-        [6 * t, 12 * t**2]
+        [3 * t_dbl**2, 4 * t_dbl**3],
+        [6 * t_dbl, 12 * t_dbl**2]
     ])
     b = np.array([
-        v_f - a1 - 2 * a2 * t,
+        v_f - a1 - 2 * a2 * t_dbl,
         a_f - 2 * a2
     ])
 
     a3, a4 = np.linalg.solve(A, b)
-    return a0, a1, a2, a3, a4
+    return D(a0), D(a1), D(a2), D(a3), D(a4)
 
 
 class LIPM3D:
@@ -65,6 +72,7 @@ class LIPM3D:
         self.b = b
 
         self.t = D("0.0")
+        self.t_s = D("0.0")
 
         self.g = D("9.81")
         self.z_c = z_c
@@ -80,7 +88,7 @@ class LIPM3D:
         # COM state at start of step
         self.x_i = self.p_x
         self.vx_i = D("0.0")
-        self.ay_i = D("0.0")
+        self.ax_i = D("0.0")
         self.y_i = self.p_y
         self.vy_i = D("0.0")
         self.ay_i = D("0.0")
@@ -88,7 +96,7 @@ class LIPM3D:
         # COM state in real time
         self.x_t = self.p_x
         self.vx_t = D("0.0")
-        self.ay_t = D("0.0")
+        self.ax_t = D("0.0")
         self.y_t = self.p_y
         self.vy_t = D("0.0")
         self.ay_t = D("0.0")
@@ -132,6 +140,12 @@ class LIPM3D:
     def get_swing_leg(self) -> np.ndarray:
         return self.right_foot_pos if self.support_leg == "left" else self.left_foot_pos
 
+    def set_support_leg(self, value: np.ndarray) -> None:
+        if self.support_leg == "right":
+            self.right_foot_pos = value
+        elif self.support_leg == "left":
+            self.left_foot_pos = value
+
     def set_swing_leg(self, value: np.ndarray) -> None:
         if self.support_leg == "left":
             self.right_foot_pos = value
@@ -163,12 +177,15 @@ class LIPM3D:
     def calculate_next_com_state(self) -> None:
         x_t, y_t = self.x_t, self.y_t
         vx_t, vy_t = self.vx_t, self.vy_t
+        ax_t, ay_t = self.ax_t, self.ay_t
 
         self.x_i = x_t
         self.vx_i = vx_t
+        self.ax_i = ax_t
 
         self.y_i = y_t
-        self.vy_f = vy_t
+        self.vy_i = vy_t
+        self.ay_i = ay_t
 
     # Step 5
     def calculate_new_foot_place(self) -> None:
@@ -264,6 +281,8 @@ class LIPM3D:
             else:
                 self.support_leg = "left" if previous_support_leg == "right" else "right"
 
+        self.start_swing_foot = self.get_swing_leg()
+
     def walk_pattern_gen(self) -> None:
         self.calculate_next_com_state()
         self.calculate_new_foot_place()
@@ -305,7 +324,8 @@ class LIPM3D:
         self.ay_t = g / z_c * (self.y_t - mod_p_y)
 
     def double_support_phase_com_state(self) -> None:
-        t, t_sup, t_dbl = self.t, self.t_sup, self.t_dbl
+        t, t_dbl = self.t_s, self.t_dbl
+        n = self.n
 
         x_t, y_t = self.x_t, self.y_t
         vx_t, vy_t = self.vx_t, self.vy_t
@@ -314,15 +334,7 @@ class LIPM3D:
         vx_f, vy_f = self.vx_f, self.vy_f
         ax_f, ay_f = self.ax_f, self.ay_f
 
-        if t_dbl == D("0.0"):
-            return
-
-        t %= (t_sup + t_dbl)
-
-        if t < t_sup:
-            return
-
-        t -= t_sup
+        t -= t_dbl * (n - D("1.0"))
 
         a_x0, a_x1, a_x2, a_x3, a_x4 = compute_coefficients(
             x_t, vx_t, ax_t, vx_f, ax_f, t_dbl)
@@ -344,22 +356,19 @@ class LIPM3D:
             self.double_support_phase_com_state()
 
     def move_swing_leg(self) -> None:
-        start_swing_leg = self.start_swing_foot
+        start_swing_foot = self.start_swing_foot
         mod_p_x, mod_p_y = self.mod_p_x, self.mod_p_y
         t = self.t
         t_sup, n = self.t_sup, self.n
         z_c = self.z_c
 
-        progress_t = 1 + (t - t_sup * n) / t_sup
+        progress_t = (t - t_sup * (n - D("1.0"))) / t_sup
 
-        # TODO: update z still broken
-        update_z = z_c - abs((progress_t - 1) / D('2.0') - z_c)
-        # update_z = D("0.0")
-        update_swing = np.array([mod_p_x, mod_p_y, update_z]) - start_swing_leg
-        update_swing = [val * progress_t for val in update_swing]
+        update_swing = np.array([mod_p_x, mod_p_y, D("0.0")]) - start_swing_foot
+        update_swing = [pos * progress_t for pos in update_swing]
+        update_swing[2] = z_c - abs(progress_t / t_sup - z_c)
 
-        self.set_swing_leg(start_swing_leg + update_swing)
-        # self.print_info()
+        self.set_swing_leg(start_swing_foot + update_swing)
 
     def set_walk_parameter(self, input) -> None:
         s_x_1, s_y_1, s_theta_1 = self.s_x_1, self.s_y_1, self.s_theta_1
@@ -439,7 +448,7 @@ class LIPM3D:
 
         self.t += dt
 
-        if t >= t_sup * n:
+        if t >= t_sup * n and self.support_leg != "both":
             # print("HELLO")
             self.n += D("1.0")
 
@@ -452,10 +461,22 @@ class LIPM3D:
             self.update_end_com_state()
             self.switch_support_leg()
 
-            self.start_swing_foot = self.get_swing_leg()
+            self.print_info()
 
         self.calculate_real_time_com_state()
-        self.move_swing_leg()
+
+        if self.support_leg == "both":
+            self.t_s += dt
+            self.t -= dt
+
+            if self.t_s >= t_dbl * n:
+                self.switch_support_leg()
+        else:
+            self.move_swing_leg()
+
+        reset_support_leg = self.get_support_leg()
+        reset_support_leg[2] = D("0.0")
+        self.set_support_leg(reset_support_leg)
 
     def print_info(self) -> None:
         print("------------------------------------------------------------")
@@ -473,11 +494,11 @@ class LIPM3D:
               np.array([self.walk_vx, self.walk_vy])}")
         print(
             f"Initial COM state : {
-                np.array([self.x_i, self.y_i, self.vx_i, self.vy_i])}"
+                np.array([self.x_i, self.y_i, self.vx_i, self.vy_i, self.ax_i, self.ay_i])}"
         )
         print(
             f"Current COM state : {
-                np.array([self.x_t, self.y_t, self.vx_t, self.vy_t])}"
+                np.array([self.x_t, self.y_t, self.vx_t, self.vy_t, self.ax_t, self.ay_t])}"
         )
         print(
             f"Desired COM state : {
