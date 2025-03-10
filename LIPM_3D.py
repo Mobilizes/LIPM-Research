@@ -5,29 +5,15 @@ from decimal import Decimal as D
 import numpy as np
 
 
-def compute_coefficients(p_0, v_0, a_0, v_f, a_f, t_dbl):
-    p_0 = float(p_0)
-    v_0 = float(v_0)
-    a_0 = float(a_0)
-    v_f = float(v_f)
-    a_f = float(a_f)
-    t_dbl = float(t_dbl)
+def compute_velocity_coefficients(v0, a0, vt, at, T):
+    delta_v = vt - v0
 
-    a0 = p_0
-    a1 = v_0
-    a2 = a_0 / 2
+    a = (-2 * delta_v + T * (a0 + at)) / T**3
+    b = (3 * delta_v - T * (2*a0 + at)) / T**2
+    c = a0
+    d = v0
 
-    A = np.array([
-        [3 * t_dbl**2, 4 * t_dbl**3],
-        [6 * t_dbl, 12 * t_dbl**2]
-    ])
-    b = np.array([
-        v_f - a1 - 2 * a2 * t_dbl,
-        a_f - 2 * a2
-    ])
-
-    a3, a4 = np.linalg.solve(A, b)
-    return D(a0), D(a1), D(a2), D(a3), D(a4)
+    return (a, b, c, d)
 
 
 class LIPM3D:
@@ -324,7 +310,7 @@ class LIPM3D:
         self.ay_t = g / z_c * (self.y_t - mod_p_y)
 
     def double_support_phase_com_state(self) -> None:
-        t, t_dbl = self.t_s, self.t_dbl
+        t_s, t_dbl = self.t_s, self.t_dbl
         n = self.n
 
         x_t, y_t = self.x_t, self.y_t
@@ -334,20 +320,9 @@ class LIPM3D:
         vx_f, vy_f = self.vx_f, self.vy_f
         ax_f, ay_f = self.ax_f, self.ay_f
 
-        t -= t_dbl * (n - D("1.0"))
+        t_s -= t_dbl * (n - D("1.0"))
 
-        a_x0, a_x1, a_x2, a_x3, a_x4 = compute_coefficients(
-            x_t, vx_t, ax_t, vx_f, ax_f, t_dbl)
-        a_y0, a_y1, a_y2, a_y3, a_y4 = compute_coefficients(
-            y_t, vy_t, ay_t, vy_f, ay_f, t_dbl)
-
-        self.x_t = a_x0 + a_x1 * t + a_x2 * t**2 + a_x3 * t**3 + a_x4 * t**4
-        self.vx_t = a_x1 + 2 * a_x2 * t + 3 * a_x3 * t**2 + 4 * a_x4 * t**3
-        self.ax_t = 2 * a_x2 + 6 * a_x3 * t + 12 * a_x4 * t**2
-
-        self.y_t = a_y0 + a_y1 * t + a_y2 * t**2 + a_y3 * t**3 + a_y4 * t**4
-        self.vy_t = a_y1 + 2 * a_y2 * t + 3 * a_y3 * t**2 + 4 * a_y4 * t**3
-        self.ay_t = 2 * a_y2 + 6 * a_y3 * t + 12 * a_y4 * t**2
+        # TODO: implement the velocity profile
 
     def calculate_real_time_com_state(self) -> None:
         if self.support_leg != "both":
@@ -442,11 +417,11 @@ class LIPM3D:
         self.ay_f = g / z_c * (y_f - mod_p_y)
 
     def step(self, dt) -> None:
-        t = self.t
+        t, t_s = self.t, self.t_s
         t_sup, n = self.t_sup, self.n
         t_dbl = self.t_dbl
 
-        self.t += dt
+        self.calculate_real_time_com_state()
 
         if t >= t_sup * n and self.support_leg != "both":
             # print("HELLO")
@@ -456,22 +431,19 @@ class LIPM3D:
             # print(self.x_t)
             # print(self.y_t)
 
+            self.print_info()
+
             self.update_walk_parameter()
             self.walk_pattern_gen()
             self.update_end_com_state()
             self.switch_support_leg()
 
-            self.print_info()
-
-        self.calculate_real_time_com_state()
-
         if self.support_leg == "both":
             self.t_s += dt
-            self.t -= dt
-
-            if self.t_s >= t_dbl * n:
+            if t_s >= t_dbl * n:
                 self.switch_support_leg()
         else:
+            self.t += dt
             self.move_swing_leg()
 
         reset_support_leg = self.get_support_leg()
@@ -499,6 +471,10 @@ class LIPM3D:
         print(
             f"Current COM state : {
                 np.array([self.x_t, self.y_t, self.vx_t, self.vy_t, self.ax_t, self.ay_t])}"
+        )
+        print(
+            f"Final COM state : {
+                np.array([self.x_f, self.y_f, self.vx_f, self.vy_f, self.ax_f, self.ay_f])}"
         )
         print(
             f"Desired COM state : {
