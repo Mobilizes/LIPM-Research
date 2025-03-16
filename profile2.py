@@ -1,44 +1,47 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def compute_velocity_coefficients(v0, a0, vt, at, T):
-    delta_v = vt - v0
-
-    a = (-2 * delta_v + T * (a0 + at)) / T**3
-    b = (3 * delta_v - T * (2*a0 + at)) / T**2
-    c = a0
-    d = v0
-
-    return (a, b, c, d)
-
+def quintic_coefficients(t, x0, v0, a0, xT, vT, aT):
+    m = np.array([
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 2, 0, 0],
+        [t**5, t**4, t**3, t**2, t, 1],
+        [5*t**4, 4*t**3, 3*t**2, 2*t, 1, 0],
+        [20*t**3, 12*t**2, 6*t, 2, 0, 0]
+    ])
+    bc = np.array([x0, v0, a0, xT, vT, aT])
+    coeff = np.linalg.solve(m, bc)
+    return coeff
 
 t_dbl = 0.1
 px0 = 0.7499999999999999969443173731
 vx0 = 1.040580659917997861863933705
 ax0 = 3.698428719590751575975803334
+pxt = px0 + vx0 * t_dbl
 vxt = 1.040580659917997861863933705
 axt = -3.065624999999999987425321924
 
 py0 = 0.0629464390079180365856365816
 vy0 = 0.6782356521365885656334054542
 ay0 = 2.410583159127707231663843249
+pyt = py0 + vy0 * t_dbl
 vyt = 0.6782356521365885656334054542
 ayt = -2.754387290811122666716712508
 
-vxa, vxb, vxc, vxd = compute_velocity_coefficients(vx0, ax0, vxt, axt, t_dbl)
-vya, vyb, vyc, vyd = compute_velocity_coefficients(vy0, ay0, vyt, ayt, t_dbl)
+ax, bx, cx, dx, ex, fx = quintic_coefficients(t_dbl, px0, vx0, ax0, pxt, vxt, axt)
+ay, by, cy, dy, ey, fy = quintic_coefficients(t_dbl, py0, vy0, ay0, pyt, vyt, ayt)
 
 t = np.linspace(0, t_dbl, 100)
 
-velocity_x = vxa * t**3 + vxb * t**2 + vxc * t + vxd
-velocity_y = vya * t**3 + vyb * t**2 + vyc * t + vyd
+position_x = ax * t**5 + bx * t**4 + cx * t**3 + dx * t**2 + ex * t + fx
+position_y = ay * t**5 + by * t**4 + cy * t**3 + dy * t**2 + ey * t + fy
 
-position_x = vxa * t**4 / 4 + vxb * t**3 / 3 + vxc * t**2 / 2 + vxd * t + px0
-position_y = vya * t**4 / 4 + vyb * t**3 / 3 + vyc * t**2 / 2 + vyd * t + py0
+velocity_x = 5 * ax * t**4 + 4 * bx * t**3 + 3 * cx * t**2 + 2 * dx * t + ex
+velocity_y = 5 * ay * t**4 + 4 * by * t**3 + 3 * cy * t**2 + 2 * dy * t + ey
 
-acceleration_x = 3 * vxa * t**2 + 2 * vxb * t + vxc
-acceleration_y = 3 * vya * t**2 + 2 * vyb * t + vyc
+acceleration_x = 20 * ax * t**3 + 12 * bx * t**2 + 6 * cx * t + 2 * dx
+acceleration_y = 20 * ay * t**3 + 12 * by * t**2 + 6 * cy * t + 2 * dy
 
 plt.figure(figsize=(10, 6))
 
