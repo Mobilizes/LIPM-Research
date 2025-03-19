@@ -9,12 +9,12 @@ from visual import LIPM3D_Visual
 
 
 def main():
-    right_foot = np.array([D('0.5'), D('0.1'), D('0.0')])
-    left_foot = np.array([D('0.5'), D('-0.1'), D('0.0')])
+    right_foot = np.array([D('100'), D('0.1'), D('0.0')])
+    left_foot = np.array([D('100'), D('-0.1'), D('0.0')])
     t_sup = D('0.7')
     t_dbl = D('0.1')
     z_c = D('0.8')
-    x_speed = D('0.5')
+    x_speed = D('5')
     y_speed = D('0.0')
     a_speed = D('0.0')
     a = D('10')

@@ -33,8 +33,12 @@ class LIPM3D_Visual:
 
         fig.canvas.mpl_connect('button_release_event', on_release)
 
-        ax.set_xlim(float(lipm.x_t) - 1.0, float(lipm.x_t) + 1.0)
-        ax.set_ylim(float(lipm.y_t) - 0.5, float(lipm.y_t) + 0.5)
+        if lipm.support_leg == "left":
+            ax.set_xlim(float(lipm.get_support_leg()[0] - lipm.x_speed), float(lipm.get_swing_leg()[0] + lipm.x_speed))
+            ax.set_ylim(float(lipm.get_support_leg()[1] - lipm.y_speed), float(lipm.get_swing_leg()[1] + lipm.y_speed))
+        else:
+            ax.set_xlim(float(lipm.get_swing_leg()[0] - lipm.x_speed), float(lipm.get_support_leg()[0] + lipm.x_speed))
+            ax.set_ylim(float(lipm.get_swing_leg()[1] - lipm.y_speed), float(lipm.get_support_leg()[1] + lipm.y_speed))
 
         (left_leg,) = ax.plot(
             [float(lipm.x_t), float(lipm.left_foot_pos[0])],
