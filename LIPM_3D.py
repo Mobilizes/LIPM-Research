@@ -82,8 +82,8 @@ class LIPM3D:
         self.t_dbl = t_dbl
 
         # Foot location at start of step
-        self.p_x = [self.get_support_leg()[0], D("0.0")]
-        self.p_y = [self.get_support_leg()[1], D("0.0")]
+        self.p_x = [self.get_swing_leg()[0], D("0.0")]
+        self.p_y = [self.get_swing_leg()[1], D("0.0")]
 
         # Foot location at end of step
         self.mod_p_x = [self.p_x[0], D("0.0")]
@@ -231,17 +231,17 @@ class LIPM3D:
 
     # Step 5
     def calculate_new_foot_place(self):
-        s_x, s_y, s_theta = self.s_x[0], self.s_y[0], self.s_theta[0]
+        s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
 
         # TODO: this formula cannot stepping turn in place, find a new formula
-        theta_c = np.cos(float(s_theta))
-        theta_s = np.sin(float(s_theta))
+        theta_c = np.cos(float(s_theta[0]))
+        theta_s = np.sin(float(s_theta[0]))
         if self.support_leg == "right":
-            p_x = D(theta_c) * s_x - D(theta_s) * s_y + self.p_x[0]
-            p_y = D(theta_s) * s_x + D(theta_c) * s_y + self.p_y[0]
+            p_x = D(theta_c) * s_x[0] - D(theta_s) * s_y[0] + self.p_x[0]
+            p_y = D(theta_s) * s_x[0] + D(theta_c) * s_y[0] + self.p_y[0]
         elif self.support_leg == "left":
-            p_x = D(theta_c) * s_x + D(theta_s) * s_y + self.p_x[0]
-            p_y = D(theta_s) * s_x - D(theta_c) * s_y + self.p_y[0]
+            p_x = D(theta_c) * s_x[0] + D(theta_s) * s_y[0] + self.p_x[0]
+            p_y = D(theta_s) * s_x[0] - D(theta_c) * s_y[0] + self.p_y[0]
         else:
             raise Exception("Foot place calculated during DSP")
 
@@ -258,16 +258,16 @@ class LIPM3D:
         s = self.s
         t_c = self.t_c
 
-        s_x_1, s_y_1, s_theta_1 = self.s_x[1], self.s_y[1], self.s_theta[1]
+        s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
 
-        theta_c = np.cos(float(s_theta_1))
-        theta_s = np.sin(float(s_theta_1))
+        theta_c = np.cos(float(s_theta[1]))
+        theta_s = np.sin(float(s_theta[1]))
         if self.support_leg == "right":
-            walk_x = D(theta_c) * s_x_1 / D("2.0") + D(theta_s) * s_y_1 / D("2.0")
-            walk_y = D(theta_s) * s_x_1 / D("2.0") - D(theta_c) * s_y_1 / D("2.0")
+            walk_x = D(theta_c) * s_x[1] / D("2.0") + D(theta_s) * s_y[1] / D("2.0")
+            walk_y = D(theta_s) * s_x[1] / D("2.0") - D(theta_c) * s_y[1] / D("2.0")
         elif self.support_leg == "left":
-            walk_x = D(theta_c) * s_x_1 / D("2.0") - D(theta_s) * s_y_1 / D("2.0")
-            walk_y = D(theta_s) * s_x_1 / D("2.0") + D(theta_c) * s_y_1 / D("2.0")
+            walk_x = D(theta_c) * s_x[1] / D("2.0") - D(theta_s) * s_y[1] / D("2.0")
+            walk_y = D(theta_s) * s_x[1] / D("2.0") + D(theta_c) * s_y[1] / D("2.0")
         else:
             raise Exception("Walk primitive updated during DSP")
 
@@ -408,26 +408,25 @@ class LIPM3D:
             vx_i, vy_i = com_i[1]
             ax_i, ay_i = com_i[2]
 
-            s_x_1, s_y_1, s_theta_1 = self.s_x[1], self.s_y[1], self.s_theta[1]
-            s_x_2, s_y_2, s_theta_2 = self.s_x[2], self.s_y[2], self.s_theta[2]
+            s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
 
-            theta_c = np.cos(float(s_theta_1))
-            theta_s = np.sin(float(s_theta_1))
+            theta_c = np.cos(float(s_theta[1]))
+            theta_s = np.sin(float(s_theta[1]))
             if self.previous_support_leg == "left":
-                p_x = D(theta_c) * s_x_1 - D(theta_s) * s_y_1 + self.p_x[0]
-                p_y = D(theta_s) * s_x_1 + D(theta_c) * s_y_1 + self.p_y[0]
+                p_x = D(theta_c) * s_x[1] - D(theta_s) * s_y[1] + self.p_x[0]
+                p_y = D(theta_s) * s_x[1] + D(theta_c) * s_y[1] + self.p_y[0]
             else:
-                p_x = D(theta_c) * s_x_1 + D(theta_s) * s_y_1 + self.p_x[0]
-                p_y = D(theta_s) * s_x_1 - D(theta_c) * s_y_1 + self.p_y[0]
+                p_x = D(theta_c) * s_x[1] + D(theta_s) * s_y[1] + self.p_x[0]
+                p_y = D(theta_s) * s_x[1] - D(theta_c) * s_y[1] + self.p_y[0]
 
-            theta_c = np.cos(float(s_theta_2))
-            theta_s = np.sin(float(s_theta_2))
+            theta_c = np.cos(float(s_theta[2]))
+            theta_s = np.sin(float(s_theta[2]))
             if self.previous_support_leg == "left":
-                walk_x = D(theta_c) * s_x_2 / D("2.0") + D(theta_s) * s_y_2 / D("2.0")
-                walk_y = D(theta_s) * s_x_2 / D("2.0") - D(theta_c) * s_y_2 / D("2.0")
+                walk_x = D(theta_c) * s_x[2] / D("2.0") + D(theta_s) * s_y[2] / D("2.0")
+                walk_y = D(theta_s) * s_x[2] / D("2.0") - D(theta_c) * s_y[2] / D("2.0")
             else:
-                walk_x = D(theta_c) * s_x_2 / D("2.0") - D(theta_s) * s_y_2 / D("2.0")
-                walk_y = D(theta_s) * s_x_2 / D("2.0") + D(theta_c) * s_y_2 / D("2.0")
+                walk_x = D(theta_c) * s_x[2] / D("2.0") - D(theta_s) * s_y[2] / D("2.0")
+                walk_y = D(theta_s) * s_x[2] / D("2.0") + D(theta_c) * s_y[2] / D("2.0")
 
             t_c = self.t_c
             c, s = self.c, self.s
@@ -456,13 +455,13 @@ class LIPM3D:
             vx_f, vy_f = com_t[1]
             ax_f, ay_f = com_t[2]
 
-            print("Init state : " + str(x_i) + ", " + str(y_i))
-            print("Init vel : " + str(vx_i) + ", " + str(vy_i))
-            print("Init acc : " + str(ax_i) + ", " + str(ay_i))
-            print("Target state : " + str(x_f) + ", " + str(y_f))
-            print("Target vel : " + str(vx_f) + ", " + str(vy_f))
-            print("Target acc : " + str(ax_f) + ", " + str(ay_f))
-            print()
+            # print("Init state : " + str(x_i) + ", " + str(y_i))
+            # print("Init vel : " + str(vx_i) + ", " + str(vy_i))
+            # print("Init acc : " + str(ax_i) + ", " + str(ay_i))
+            # print("Target state : " + str(x_f) + ", " + str(y_f))
+            # print("Target vel : " + str(vx_f) + ", " + str(vy_f))
+            # print("Target acc : " + str(ax_f) + ", " + str(ay_f))
+            # print()
 
             self.cxa, self.cxb, self.cxc, self.cxd, self.cxe, self.cxf = (
                 compute_velocity_coefficients(x_i, vx_i, ax_i, x_f, vx_f, ax_f, t_dbl)
@@ -583,24 +582,24 @@ class LIPM3D:
         s_x = x_speed
 
         # Update new a (theta) walk parameter
-        s_theta_2 = wrap(s_theta[2] + a_speed, -D(np.pi), D(np.pi))
+        s_theta = wrap(s_theta[2] + a_speed, -D(np.pi), D(np.pi))
 
         # Update new y walk parameter
-        s_y_2 = y_offset * D("2.0")
-        if s_y_2 < y_offset * D("2.0"):
-            s_y_2 += y_speed
+        s_y = y_offset * D("2.0")
+        if s_y < y_offset * D("2.0"):
+            s_y += y_speed
         else:
-            s_y_2 -= y_speed
+            s_y -= y_speed
 
         # Update walk parameter iteration
         self.s_x.pop(0)
         self.s_x.append(s_x)
 
         self.s_y.pop(0)
-        self.s_y.append(s_y_2)
+        self.s_y.append(s_y)
 
         self.s_theta.pop(0)
-        self.s_theta.append(s_theta_2)
+        self.s_theta.append(s_theta)
 
     def update_end_com_state(self):
         t_sup = self.t_sup
@@ -616,38 +615,32 @@ class LIPM3D:
         self.ay_f = [com[2][1], self.ay_f[0]]
 
     def single_support_phase_step(self, dt):
-        t = self.t
-        t_sup, n = self.t_sup, self.n
-
         if self.initial_ssp:
             self.initial_ssp = False
-
-            self.print_info()
-
-        self.t += dt
-        if t >= t_sup * n and self.support_leg != "both":
-            self.n += D("1.0")
 
             self.update_walk_parameter()
             self.walk_pattern_gen()
             self.update_end_com_state()
-            self.switch_support_leg()
 
-            self.print_info()
-            self.initial_ssp = True
+            self.n += D("1.0")
+            # self.print_info()
+
+        self.t += dt
 
         self.move_swing_leg()
 
-    def double_support_phase_step(self, dt):
-        t_s = self.t_s
-        t_dbl = self.t_dbl
-        n = self.n
+        if self.t >= self.t_sup * self.n:
+            self.switch_support_leg()
 
+            # self.print_info()
+            self.initial_ssp = True
+
+    def double_support_phase_step(self, dt):
         if self.initial_dsp:
             self.initial_dsp = False
 
         self.t_s += dt
-        if t_s >= t_dbl * n:
+        if self.t_s >= self.t_dbl * self.n:
             self.switch_support_leg()
             self.coeff_calc_this_step = False
 

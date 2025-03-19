@@ -33,7 +33,7 @@ class LIPM3D_Visual:
 
         fig.canvas.mpl_connect('button_release_event', on_release)
 
-        if lipm.support_leg == "left":
+        if lipm.support_leg == "right":
             ax.set_xlim(float(lipm.get_support_leg()[0] - lipm.x_speed), float(lipm.get_swing_leg()[0] + lipm.x_speed))
             ax.set_ylim(float(lipm.get_support_leg()[1] - lipm.y_speed), float(lipm.get_swing_leg()[1] + lipm.y_speed))
         else:
@@ -148,8 +148,7 @@ class LIPM3D_Visual:
             lipm.x_t[0],
             lipm.y_t[0],
             "o",
-            color="red",
-            label=str(float(lipm.t + lipm.t_s))
+            color="red"
         )
         (com_traj,) = ax.plot(
             [float(row[0][0]) for row in com_history],
@@ -182,7 +181,9 @@ class LIPM3D_Visual:
         # ax.set_xlim(x_min - cons, x_max + cons)
         # ax.set_xlim(y_min - cons, y_max + cons)
 
-        plt.legend()
+        plt.legend(
+            [com_pos, mod_p], ["t : " + str(float(lipm.t)), "t_s : " + str(float(lipm.t_s))]
+        )
 
     def update_lipm(self, dt):
         self.lipm.step(dt)
