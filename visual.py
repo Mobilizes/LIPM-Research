@@ -41,24 +41,24 @@ class LIPM3D_Visual:
             ax.set_ylim(float(lipm.get_swing_leg()[1] - lipm.y_speed), float(lipm.get_support_leg()[1] + lipm.y_speed))
 
         (left_leg,) = ax.plot(
-            [float(lipm.x_t), float(lipm.left_foot_pos[0])],
-            [float(lipm.y_t), float(lipm.left_foot_pos[1])],
+            [float(lipm.x_t[0]), float(lipm.left_foot_pos[0])],
+            [float(lipm.y_t[0]), float(lipm.left_foot_pos[1])],
             zs=[float(lipm.z_c), float(lipm.left_foot_pos[2])],
             color="cyan",
             linewidth=2.0
         )
 
         (right_leg,) = ax.plot(
-            [float(lipm.x_t), float(lipm.right_foot_pos[0])],
-            [float(lipm.y_t), float(lipm.right_foot_pos[1])],
+            [float(lipm.x_t[0]), float(lipm.right_foot_pos[0])],
+            [float(lipm.y_t[0]), float(lipm.right_foot_pos[1])],
             zs=[float(lipm.z_c), float(lipm.right_foot_pos[2])],
             color="blue",
             linewidth=2.0
         )
 
         (com,) = ax.plot(
-            float(lipm.x_t),
-            float(lipm.y_t),
+            float(lipm.x_t[0]),
+            float(lipm.y_t[0]),
             "o",
             color="red",
             zs=float(lipm.z_c),
@@ -145,8 +145,8 @@ class LIPM3D_Visual:
         ax.set_ylabel("y (m)")
 
         (com_pos,) = ax.plot(
-            lipm.x_t,
-            lipm.y_t,
+            lipm.x_t[0],
+            lipm.y_t[0],
             "o",
             color="red",
             label=str(float(lipm.t + lipm.t_s))
@@ -157,7 +157,7 @@ class LIPM3D_Visual:
             color="red"
         )
 
-        (mod_p,) = ax.plot(lipm.mod_p_x, lipm.mod_p_y, "o", color="gray")
+        (mod_p,) = ax.plot(lipm.mod_p_x[0], lipm.mod_p_y[0], "o", color="gray")
         (left_foot_pos,) = ax.plot(
             lipm.left_foot_pos[0],
             lipm.left_foot_pos[1],
@@ -173,11 +173,11 @@ class LIPM3D_Visual:
 
         # cons = D("0.5")
         #
-        # x_min = min(lipm.x_t, lipm.left_foot_pos[0], lipm.right_foot_pos[0])
-        # x_max = max(lipm.x_t, lipm.left_foot_pos[0], lipm.right_foot_pos[0])
+        # x_min = min(lipm.x_t[0], lipm.left_foot_pos[0], lipm.right_foot_pos[0])
+        # x_max = max(lipm.x_t[0], lipm.left_foot_pos[0], lipm.right_foot_pos[0])
         #
-        # y_min = min(lipm.y_t, lipm.left_foot_pos[1], lipm.right_foot_pos[1])
-        # y_max = max(lipm.y_t, lipm.left_foot_pos[1], lipm.right_foot_pos[1])
+        # y_min = min(lipm.y_t[0], lipm.left_foot_pos[1], lipm.right_foot_pos[1])
+        # y_max = max(lipm.y_t[0], lipm.left_foot_pos[1], lipm.right_foot_pos[1])
         #
         # ax.set_xlim(x_min - cons, x_max + cons)
         # ax.set_xlim(y_min - cons, y_max + cons)
@@ -189,4 +189,4 @@ class LIPM3D_Visual:
 
         lipm = self.lipm
         self.com_history.append(
-            ((lipm.x_t, lipm.y_t), (lipm.vx_t, lipm.vy_t), (lipm.ax_t, lipm.ay_t)))
+            ((lipm.x_t[0], lipm.y_t[0]), (lipm.vx_t[0], lipm.vy_t[0]), (lipm.ax_t[0], lipm.ay_t[0])))
