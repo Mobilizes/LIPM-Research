@@ -401,6 +401,8 @@ class LIPM3D:
     def double_support_phase_com_state(self, t_s):
         t_sup, t_dbl = self.t_sup, self.t_dbl
 
+        # x_i, y_i = self.x_f[0], self.y_f[0]
+
         if not self.coeff_calc_this_step:
             com_i = self.analytical_real_time_com_state(t_sup)
 
@@ -463,6 +465,13 @@ class LIPM3D:
             # print("Target acc : " + str(ax_f) + ", " + str(ay_f))
             # print()
 
+            # self.cxa, self.cxb, self.cxc, self.cxd = compute_velocity_coefficients(
+            #     vx_i, ax_i, vx_f, ax_f, t_dbl
+            # )
+            # self.cya, self.cyb, self.cyc, self.cyd = compute_velocity_coefficients(
+            #     vy_i, ay_i, vy_f, ay_f, t_dbl
+            # )
+
             self.cxa, self.cxb, self.cxc, self.cxd, self.cxe, self.cxf = (
                 compute_velocity_coefficients(x_i, vx_i, ax_i, x_f, vx_f, ax_f, t_dbl)
             )
@@ -471,6 +480,40 @@ class LIPM3D:
             )
 
             self.coeff_calc_this_step = True
+
+        # cxa, cxb, cxc, cxd = (
+        #     self.cxa,
+        #     self.cxb,
+        #     self.cxc,
+        #     self.cxd,
+        # )
+        # cya, cyb, cyc, cyd = (
+        #     self.cya,
+        #     self.cyb,
+        #     self.cyc,
+        #     self.cyd,
+        # )
+        #
+        # x_t = (
+        #     cxa * t_s ** D("4") / D("4")
+        #     + cxb * t_s ** D("3") / D("3")
+        #     + cxc * t_s ** D("2") / D("2")
+        #     + cxd
+        #     + x_i
+        # )
+        # y_t = (
+        #     cya * t_s ** D("4") / D("4")
+        #     + cyb * t_s ** D("3") / D("3")
+        #     + cyc * t_s ** D("2") / D("2")
+        #     + cyd
+        #     + y_i
+        # )
+        #
+        # vx_t = cxa * t_s ** D("3") + cxb * t_s ** D("2") + cxc * t_s + cxc
+        # vy_t = cya * t_s ** D("3") + cyb * t_s ** D("2") + cyc * t_s + cyc
+        #
+        # ax_t = D("3") * cxa * t_s ** D("2") + D("2") * cxb * t_s + cxc
+        # ay_t = D("3") * cya * t_s ** D("2") + D("2") * cyb * t_s + cyc
 
         cxa, cxb, cxc, cxd, cxe, cxf = (
             self.cxa,
