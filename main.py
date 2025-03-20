@@ -17,7 +17,7 @@ def main():
     x_speed = D('5')
     y_speed = D('0.0')
     a_speed = D('0.0')
-    a = D('10')
+    a = D('1')
     b = D('1')
 
     lipm = LIPM3D(
