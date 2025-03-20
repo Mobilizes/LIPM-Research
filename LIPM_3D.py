@@ -69,7 +69,7 @@ class LIPM3D:
         self.right_foot_pos = right_foot_pos
         self.y_offset = y_offset
         self.support_leg = support_leg  # left / both / right
-        self.previous_support_leg = "both"
+        self.previous_support_leg = "left" if support_leg == "right" else support_leg
 
         # Swing leg position at start of step
         self.start_swing_foot = self.get_swing_leg()
@@ -216,10 +216,17 @@ class LIPM3D:
         )
 
     # Step 3
-    def calculate_next_com_state(self):
-        x_t, y_t = self.x_t[0], self.y_t[0]
-        vx_t, vy_t = self.vx_t[0], self.vy_t[0]
-        ax_t, ay_t = self.ax_t[0], self.ay_t[0]
+    def update_next_com(self, real_time_com=None):
+        if real_time_com is None:
+            real_time_com = (
+                (self.x_t[0], self.y_t[0]),
+                (self.vx_t[0], self.vy_t[0]),
+                (self.ax_t[0], self.ay_t[0]),
+            )
+
+        x_t, y_t = real_time_com[0]
+        vx_t, vy_t = real_time_com[1]
+        ax_t, ay_t = real_time_com[2]
 
         self.x_i = [x_t, self.x_i[0]]
         self.vx_i = [vx_t, self.vx_i[0]]
@@ -230,44 +237,64 @@ class LIPM3D:
         self.ay_i = [ay_t, self.ay_i[0]]
 
     # Step 5
-    def calculate_new_foot_place(self):
-        s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
+    def calculate_new_foot_place(self, p=None, s_x=None, s_y=None, s_theta=None):
+        if p is None:
+            p = [self.p_x[0], self.p_y[0]]
+
+        if s_x is None:
+            s_x = self.s_x[0]
+
+        if s_y is None:
+            s_y = self.s_y[0]
+
+        if s_theta is None:
+            s_theta = self.s_theta[0]
 
         # TODO: this formula cannot stepping turn in place, find a new formula
-        theta_c = np.cos(float(s_theta[0]))
-        theta_s = np.sin(float(s_theta[0]))
+        theta_c = np.cos(float(s_theta))
+        theta_s = np.sin(float(s_theta))
         if self.support_leg == "right":
-            p_x = D(theta_c) * s_x[0] - D(theta_s) * s_y[0] + self.p_x[0]
-            p_y = D(theta_s) * s_x[0] + D(theta_c) * s_y[0] + self.p_y[0]
+            p[0] += D(theta_c) * s_x - D(theta_s) * s_y
+            p[1] += D(theta_s) * s_x + D(theta_c) * s_y
         elif self.support_leg == "left":
-            p_x = D(theta_c) * s_x[0] + D(theta_s) * s_y[0] + self.p_x[0]
-            p_y = D(theta_s) * s_x[0] - D(theta_c) * s_y[0] + self.p_y[0]
+            p[0] += D(theta_c) * s_x + D(theta_s) * s_y
+            p[1] += D(theta_s) * s_x - D(theta_c) * s_y
         else:
             raise Exception("Foot place calculated during DSP")
 
-        self.p_x = [p_x, self.p_x[0]]
-        self.p_y = [p_y, self.p_y[0]]
+        return p
+
+    def update_new_foot_place(self, p):
+        self.p_x = [p[0], self.p_x[0]]
+        self.p_y = [p[1], self.p_y[0]]
 
     # Step 6
-    def calculate_new_walk_primitive(self):
+    def calculate_new_walk_primitive(self, s_x=None, s_y=None, s_theta=None):
         """
         Make sure the step length parameters are a step ahead
         from new foot place
         """
+        if s_x is None:
+            s_x = self.s_x[1]
+
+        if s_y is None:
+            s_y = self.s_y[1]
+
+        if s_theta is None:
+            s_theta = self.s_theta[1]
+
         c = self.c
         s = self.s
         t_c = self.t_c
 
-        s_x, s_y, s_theta = self.s_x, self.s_y, self.s_theta
-
-        theta_c = np.cos(float(s_theta[1]))
-        theta_s = np.sin(float(s_theta[1]))
+        theta_c = np.cos(float(s_theta))
+        theta_s = np.sin(float(s_theta))
         if self.support_leg == "right":
-            walk_x = D(theta_c) * s_x[1] / D("2.0") + D(theta_s) * s_y[1] / D("2.0")
-            walk_y = D(theta_s) * s_x[1] / D("2.0") - D(theta_c) * s_y[1] / D("2.0")
+            walk_x = D(theta_c) * s_x / D("2.0") + D(theta_s) * s_y / D("2.0")
+            walk_y = D(theta_s) * s_x / D("2.0") - D(theta_c) * s_y / D("2.0")
         elif self.support_leg == "left":
-            walk_x = D(theta_c) * s_x[1] / D("2.0") - D(theta_s) * s_y[1] / D("2.0")
-            walk_y = D(theta_s) * s_x[1] / D("2.0") + D(theta_c) * s_y[1] / D("2.0")
+            walk_x = D(theta_c) * s_x / D("2.0") - D(theta_s) * s_y / D("2.0")
+            walk_y = D(theta_s) * s_x / D("2.0") + D(theta_c) * s_y / D("2.0")
         else:
             raise Exception("Walk primitive updated during DSP")
 
@@ -277,22 +304,49 @@ class LIPM3D:
         walk_vx = D(theta_c) * a - D(theta_s) * b
         walk_vy = D(theta_s) * a + D(theta_c) * b
 
+        return ((walk_x, walk_y), (walk_vx, walk_vy))
+
+    def update_walk_primitive(self, walk_primitive):
+        walk_x, walk_y = walk_primitive[0]
+        walk_vx, walk_vy = walk_primitive[1]
+
         self.walk_x = [walk_x, self.walk_x[0]]
         self.walk_y = [walk_y, self.walk_y[0]]
         self.walk_vx = [walk_vx, self.walk_vx[0]]
         self.walk_vy = [walk_vy, self.walk_vy[0]]
 
     # Step 7
-    def calculate_target_com_state(self):
-        p_x, p_y = self.p_x[0], self.p_y[0]
-        walk_x, walk_y = self.walk_x[0], self.walk_y[0]
-        walk_vx, walk_vy = self.walk_vx[0], self.walk_vy[0]
+    def calculate_target_com(self, p=None, walk_primitive=None):
+        if p is None:
+            p = self.p_x[0], self.p_y[0]
 
-        self.x_d = [p_x + walk_x, self.x_d[0]]
-        self.vx_d = [walk_vx, self.vx_d[0]]
+        if walk_primitive is None:
+            walk_primitive = (
+                (self.walk_x[0], self.walk_y[0]),
+                (self.walk_vx[0], self.walk_vy[0]),
+            )
 
-        self.y_d = [p_y + walk_y, self.y_d[0]]
-        self.vy_d = [walk_vy, self.vy_d[0]]
+        p_x, p_y = p
+        walk_x, walk_y = walk_primitive[0]
+        walk_vx, walk_vy = walk_primitive[1]
+
+        x_d = p_x + walk_x
+        y_d = p_y + walk_y
+
+        vx_d = walk_vx
+        vy_d = walk_vy
+
+        return ((x_d, y_d), (vx_d, vy_d))
+
+    def update_target_com(self, target_com):
+        x_d, y_d = target_com[0]
+        vx_d, vy_d = target_com[1]
+
+        self.x_d = [x_d, self.x_d[0]]
+        self.y_d = [y_d, self.y_d[0]]
+
+        self.vx_d = [vx_d, self.vx_d[0]]
+        self.vy_d = [vy_d, self.vy_d[0]]
 
     # Step 8
     def calculate_modified_foot_placement(
@@ -330,15 +384,19 @@ class LIPM3D:
 
         return (mod_p_x, mod_p_y)
 
+    def update_modified_foot_placement(self, mod_p):
+        self.mod_p_x = [mod_p[0], self.mod_p_x[0]]
+        self.mod_p_y = [mod_p[1], self.mod_p_y[0]]
+
     def switch_support_leg(self):
         support_leg = self.support_leg
         previous_support_leg = self.previous_support_leg
 
+        self.previous_support_leg = support_leg
+
         if self.t_dbl == D("0.0"):
             self.support_leg = "left" if support_leg == "right" else "right"
         else:
-            self.previous_support_leg = support_leg
-
             if support_leg != "both":
                 self.support_leg = "both"
             else:
@@ -349,14 +407,19 @@ class LIPM3D:
         self.start_swing_foot = self.get_swing_leg()
 
     def walk_pattern_gen(self):
-        self.calculate_next_com_state()
-        self.calculate_new_foot_place()
-        self.calculate_new_walk_primitive()
-        self.calculate_target_com_state()
-        mod_p = self.calculate_modified_foot_placement()
+        self.update_next_com()
 
-        self.mod_p_x = [mod_p[0], self.mod_p_x[0]]
-        self.mod_p_y = [mod_p[1], self.mod_p_y[0]]
+        p = self.calculate_new_foot_place()
+        self.update_new_foot_place(p)
+
+        walk_primitive = self.calculate_new_walk_primitive()
+        self.update_walk_primitive(walk_primitive)
+
+        target_com = self.calculate_target_com()
+        self.update_target_com(target_com)
+
+        mod_p = self.calculate_modified_foot_placement()
+        self.update_modified_foot_placement(mod_p)
 
     def analytical_real_time_com_state(
         self, t, init_state=None, init_vel=None, mod_p=None
