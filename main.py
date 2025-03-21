@@ -12,7 +12,7 @@ def main():
     left_foot = np.array([D('100'), D('1.0'), D('0.0')])
     right_foot = np.array([D('100'), D('-1.0'), D('0.0')])
     t_sup = D('0.7')
-    t_dbl = D('0.1')
+    t_dbl = D('0.0')
     z_c = D('0.8')
     x_speed = D('5')
     y_speed = D('0.0')

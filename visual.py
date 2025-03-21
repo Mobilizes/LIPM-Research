@@ -190,7 +190,7 @@ class LIPM3D_Visual:
             float(lipm.x_t[0]),
             float(lipm.y_t[0]),
             "o",
-            color="red",
+            color="red" if not lipm.state_double_support_phase else "yellow",
             zs=float(lipm.z_c),
         )
 
@@ -198,7 +198,7 @@ class LIPM3D_Visual:
             [float(row[0][0]) for row in com_history],
             [float(row[0][1]) for row in com_history],
             [0.0] * len(com_history),
-            ["red" if row[-1] else "cyan" for row in com_history],
+            ["red" if row[-1] else "yellow" for row in com_history],
             ax
         )
 
@@ -285,7 +285,7 @@ class LIPM3D_Visual:
         com_traj = colored_line(
             [float(row[0][0]) for row in com_history],
             [float(row[0][1]) for row in com_history],
-            ["red" if row[-1] else "cyan" for row in com_history],
+            ["red" if row[-1] else "yellow" for row in com_history],
             ax
         )
 
@@ -327,6 +327,6 @@ class LIPM3D_Visual:
                 (lipm.x_t[0], lipm.y_t[0]),
                 (lipm.vx_t[0], lipm.vy_t[0]),
                 (lipm.ax_t[0], lipm.ay_t[0]),
-                lipm.support_leg != "both",
+                not lipm.state_double_support_phase,
             )
         )
