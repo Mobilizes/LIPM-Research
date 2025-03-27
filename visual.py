@@ -1,3 +1,4 @@
+from os import system
 import warnings
 
 import matplotlib.pyplot as plt
@@ -113,12 +114,12 @@ def colored_line_3d(x, y, z, c, ax, **lc_kwargs):
     coord_start = np.column_stack((x_mid[:-1], y_mid[:-1], z_mid[:-1]))[:, np.newaxis, :]
     coord_mid = np.column_stack((x, y, z))[:, np.newaxis, :]
     coord_end = np.column_stack((x_mid[1:], y_mid[1:], z_mid[1:]))[:, np.newaxis, :]
-    
+
     segments = np.concatenate((coord_start, coord_mid, coord_end), axis=1)
 
     # Create 3D line collection
     lc = Line3DCollection(segments, colors=c, **default_kwargs)
-    
+
     # Add to axis and set color mapping
     ax.add_collection(lc)
     return lc
@@ -126,6 +127,7 @@ def colored_line_3d(x, y, z, c, ax, **lc_kwargs):
 class LIPM3D_Visual:
     def __init__(self, lipm: LIPM3D, nrow=2, ncol=2):
         self.com_history = []
+        self.zmp_history = []
         self.lipm = lipm
         self.nrow = nrow
         self.ncol = ncol
@@ -230,6 +232,7 @@ class LIPM3D_Visual:
         cons = 2
         left_lim = max(0, t[-1] - cons)
         ax.set_xlim(left_lim, left_lim + 2*cons)
+        ax.set_ylim(-20, 20)
 
         plt.legend()
 
@@ -267,6 +270,7 @@ class LIPM3D_Visual:
     def project_walk_pattern(self, index):
         lipm = self.lipm
         com_history = self.com_history
+        zmp_history = self.zmp_history
 
         fig = plt.figure("LIPM")
 
@@ -279,7 +283,7 @@ class LIPM3D_Visual:
             lipm.x_t[0],
             lipm.y_t[0],
             "o",
-            color="red"
+            color="red" if not lipm.state_double_support_phase else "yellow",
         )
 
         com_traj = colored_line(
@@ -287,6 +291,11 @@ class LIPM3D_Visual:
             [float(row[0][1]) for row in com_history],
             ["red" if row[-1] else "yellow" for row in com_history],
             ax
+        )
+        zmp_traj = ax.plot(
+            [float(row[0]) for row in zmp_history],
+            [float(row[1]) for row in zmp_history],
+            color="maroon"
         )
 
         (mod_p,) = ax.plot(lipm.mod_p_x[0], lipm.mod_p_y[0], "o", color="gray")
@@ -330,3 +339,14 @@ class LIPM3D_Visual:
                 not lipm.state_double_support_phase,
             )
         )
+        self.zmp_history.append(
+            (
+                (lipm.x_t[0] - lipm.z_c / lipm.g * lipm.ax_t[0]),
+                (lipm.y_t[0] - lipm.z_c / lipm.g * lipm.ay_t[0]),
+            )
+        )
+
+        print(lipm.x_t[0])
+        print(lipm.z_c / lipm.g)
+        print(lipm.ax_t[0])
+        print()

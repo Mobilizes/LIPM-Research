@@ -14,18 +14,19 @@ def quintic_coefficients(t, x0, v0, a0, xT, vT, aT):
     coeff = np.linalg.solve(m, bc)
     return coeff
 
-t_dbl = 0.1
-px0 = 0.7499999999999999969443173731
-vx0 = 1.040580659917997861863933705
-ax0 = 3.698428719590751575975803334
-pxt = px0 + vx0 * t_dbl
-vxt = 1.040580659917997861863933705
-axt = -3.698428719590751575975803334
+t_dbl = 0.2
+
+px0 = 102.2510873860025163016147885
+vx0 = 9.519918775276269747268638657
+ax0 = 0.0
+pxt = 106.8102184494792936207048545
+vxt = 9.76078870859097705615563666
+axt = 0.0
 
 py0 = 0.0629464390079180365856365816
 vy0 = 0.6782356521365885656334054542
 ay0 = 2.410583159127707231663843249
-pyt = py0 + vy0 * t_dbl
+pyt = 0.062
 vyt = 0.6782356521365885656334054542
 ayt = -2.410583159127707231663843249
 
@@ -43,16 +44,19 @@ velocity_y = 5 * ay * t**4 + 4 * by * t**3 + 3 * cy * t**2 + 2 * dy * t + ey
 acceleration_x = 20 * ax * t**3 + 12 * bx * t**2 + 6 * cx * t + 2 * dx
 acceleration_y = 20 * ay * t**3 + 12 * by * t**2 + 6 * cy * t + 2 * dy
 
+jerk_x = 60 * ax * t**2 + 24 * bx * t + 6 * cx
+jerk_y = 60 * ay * t**2 + 24 * by * t + 6 * cy
+
 plt.figure(figsize=(10, 6))
 
 plt.subplot(3, 3, 1)
-plt.plot(t, position_x, color='blue')
+plt.plot(t, jerk_x, color='blue')
 plt.ylabel('Position (x)')
 plt.title('CoM Motion Profile')
 plt.grid(True)
 
 plt.subplot(3, 3, 2)
-plt.plot(t, position_y, color='blue')
+plt.plot(t, jerk_y, color='blue')
 plt.ylabel('Position (y)')
 plt.grid(True)
 
