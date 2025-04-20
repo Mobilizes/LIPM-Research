@@ -104,10 +104,10 @@ class Walk:
             [support_foot[0] - self.foot_width / 2., support_foot[1] - self.foot_height / 2.],
         ])
 
-        self.t_preview = self.t_mpc
+        self.t_preview = 0.
 
     def run_ssp(self):
-        progress = min(1.0, max(0.0, 1.0 - self.t_phase / self.t_sup))
+        progress = min(1.0, self.t_phase / self.t_sup)
 
         curr_swing_foot = (1 - progress) * self.start_swing_foot + progress * self.p_ref[0]
         if progress <= 0.5:
@@ -117,24 +117,24 @@ class Walk:
 
         self.set_swing_foot(curr_swing_foot)
 
-        self.t_phase -= self.dt
-        if self.t_phase <= 0:
+        self.t_phase += self.dt
+        if self.t_phase >= self.t_sup:
             self.state = "dsp"
-            self.t_phase = self.t_dbl
+            self.t_phase = 0.
             self.support_leg = "left" if self.support_leg == "right" else "right"
             self.start_swing_foot = self.get_swing_foot()
             self.p_ref = np.delete(self.p_ref, 0, 0)
             # self.update_p_ref()
 
     def run_dsp(self):
-        self.t_phase -= self.dt
-        if self.t_phase <= 0:
+        self.t_phase += self.dt
+        if self.t_phase >= self.t_sup:
             self.state = "ssp"
-            self.t_phase = self.t_sup
+            self.t_phase = 0.
 
     def step(self):
-        self.t_preview -= self.dt
-        if self.t_preview <= 0:
+        self.t_preview += self.dt
+        if self.t_preview >= 0.:
             self.update_mpc()
 
         if self.state == "ssp":
