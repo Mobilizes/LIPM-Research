@@ -134,7 +134,7 @@ class Walk:
 
     def step(self):
         self.t_preview += self.dt
-        if self.t_preview >= 0.:
+        if self.t_preview >= self.t_mpc:
             self.update_mpc()
 
         if self.state == "ssp":
