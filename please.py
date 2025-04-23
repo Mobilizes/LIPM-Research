@@ -4,8 +4,8 @@ import numpy as np
 
 dt = .1
 horizon = 50
-foot_width = 0.8
-foot_height = 0.5
+foot_width = 0.4
+foot_height = 0.1
 z_c = 0.8
 g = 9.81
 left_foot = np.array([
@@ -56,6 +56,8 @@ left_foot = np.array([
     [0.19714286, 0.2, 0.00571429, 0.0],
     [0.19714286, 0.2, 0.00571429, 0.0],
     [0.19714286, 0.2, 0.00571429, 0.0],
+    [0.19714286, 0.2, 0.0, 0.0],
+    [0.19714286, 0.2, 0.0, 0.0],
     [0.19714286, 0.2, 0.0, 0.0]
 ])
 right_foot = np.array([
@@ -129,21 +131,33 @@ lipm = placo.LIPM(problem, dt, horizon, 0., com[0], com[1], com[2])
 omg = g / z_c
 omg_2 = omg**2
 
+print(len(left_foot))
+print(len(right_foot))
+print(left_foot[0])
+
 for i in range(1, horizon + 1):
     support_foot = np.array(left_foot[i - 1] if support_state[i - 1] == "left" else right_foot[i - 1])
+    left_foot_i = left_foot[i - 1]
+    right_foot_i = right_foot[i - 1]
     support_polygon = [
-        np.array([support_foot[0] - foot_width / 2., support_foot[1] + foot_height / 2.]),
-        np.array([support_foot[0] + foot_width / 2., support_foot[1] + foot_height / 2.]),
-        np.array([support_foot[0] + foot_width / 2., support_foot[1] - foot_height / 2.]),
-        np.array([support_foot[0] - foot_width / 2., support_foot[1] - foot_height / 2.]),
+        np.array([left_foot_i[0] - foot_width / 2., left_foot_i[1] + foot_height / 2.]),
+        np.array([left_foot_i[0] + foot_width / 2., left_foot_i[1] + foot_height / 2.]),
+        np.array([left_foot_i[0] + foot_width / 2., left_foot_i[1] - foot_height / 2.]),
+        np.array([right_foot_i[0] + foot_width / 2., right_foot_i[1] + foot_height / 2.]),
+        np.array([right_foot_i[0] + foot_width / 2., right_foot_i[1] - foot_height / 2.]),
+        np.array([right_foot_i[0] - foot_width / 2., right_foot_i[1] - foot_height / 2.]),
+        np.array([right_foot_i[0] - foot_width / 2., right_foot_i[1] + foot_height / 2.]),
+        np.array([left_foot_i[0] - foot_width / 2., left_foot_i[1] - foot_height / 2.]),
     ]
+
+    print(support_polygon)
 
     problem.add_constraint(placo.PolygonConstraint.in_polygon_xy(lipm.zmp(i, omg_2), support_polygon, 0.01))
     problem.add_constraint(
         lipm.zmp(i, omg_2) == support_foot[:2]
     ).configure("soft", 1.)
 
-problem.solve()
+    problem.solve()
 
 traj = lipm.get_trajectory()
 ts = np.linspace(0, dt * horizon, 1000)

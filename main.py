@@ -21,7 +21,7 @@ def main():
     p_ref_x = []
     p_ref_y = []
 
-    max_data = 100
+    max_data = 300
     while len(left_foot_x) <= max_data:
         model.step()
 
@@ -59,8 +59,8 @@ def main():
     p_ref_plot, = ax.plot(p_ref_x, p_ref_y, 'go', label='Reference Point')
     left_foot_plot, = ax.plot(left_foot_x, left_foot_y, 'bo', label='Left Foot')
     right_foot_plot, = ax.plot(right_foot_x, right_foot_y, 'ro', label='Right Foot')
-    com_plot, = ax.plot(com_x, com_y, 'p', label='CoM', color='purple')
-    zmp_plot, = ax.plot(zmp_x, zmp_y, 'p', label='ZMP', color='cyan')
+    com_plot, = ax.plot([], [], 'p', label='CoM', color='purple')
+    zmp_plot, = ax.plot([], [], 'p', label='ZMP', color='cyan')
     ax.legend()
 
     def update(i):

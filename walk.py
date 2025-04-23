@@ -12,9 +12,10 @@ class Walk:
             "t_mpc": 90 * 0.001,
             "left_foot": np.array([0.0, 0.2, 0.0, 0.0]),
             "right_foot": np.array([0.0, -0.2, 0.0, 0.0]),
-            "foot_width": 0.25,
-            "foot_height": 0.1,
+            "foot_width": 0.1,
+            "foot_height": 0.05,
             "z_c": 1.2,
+            "zmp_margin": 0.01,
             "horizon": 50,
             "support_state": "right",
             "x_speed": 2.0,
@@ -33,11 +34,12 @@ class Walk:
         self.foot_height = opt["foot_height"]
 
         self.z_c = opt["z_c"]
+        self.zmp_margin = opt["zmp_margin"]
 
         self.left_foot = [opt["left_foot"]]
         self.right_foot = [opt["right_foot"]]
         self.support_step = [opt["support_state"]]
-        self.start_swing_foot = self.get_swing_foot()
+        self.start_swing_foot = self.get_swing_foot(-1)
 
         self.horizon = opt["horizon"]
 
@@ -47,8 +49,8 @@ class Walk:
         self.speed = [opt["x_speed"], opt["y_speed"], opt["a_speed"]]
 
         self.com = [
-            [np.array([(self.left_foot[0][0] + self.right_foot[0][1]) / 2.0, 0.0, 0.0])],
-            [np.array([(self.left_foot[0][0] + self.right_foot[0][1]) / 2.0, 0.0, 0.0])],
+            [np.array([(self.left_foot[0][0] + self.right_foot[0][0]) / 2.0, 0.0, 0.0])],
+            [np.array([(self.left_foot[0][1] + self.right_foot[0][1]) / 2.0, 0.0, 0.0])],
         ]
 
         self.zmp = [
@@ -63,19 +65,19 @@ class Walk:
         for _ in range(self.horizon):
             self.step()
 
-    def get_support_foot(self, timestep=-1):
+    def get_support_foot(self, timestep):
         return self.left_foot[timestep] if self.support_step[timestep] == "left" else self.right_foot[timestep]
 
-    def get_swing_foot(self, timestep=-1):
+    def get_swing_foot(self, timestep):
         return self.left_foot[timestep] if self.support_step[timestep] == "right" else self.right_foot[timestep]
 
     def update_foot(self, swing_foot, pop=True, switch=False, timestep=-1):
         if self.support_step[timestep] == "right":
             self.left_foot.append(swing_foot)
-            self.right_foot.append(self.get_support_foot())
+            self.right_foot.append(self.get_support_foot(-1))
         elif self.support_step[timestep] == "left":
             self.right_foot.append(swing_foot)
-            self.left_foot.append(self.get_support_foot())
+            self.left_foot.append(self.get_support_foot(-1))
         else:
             raise Exception("Unknown support leg : ", self.support_step[timestep])
 
@@ -111,20 +113,48 @@ class Walk:
 
         for i in range(1, self.horizon + 1):
             support_foot = self.get_support_foot(i - 1)
-            support_polygon = [
-                np.array([support_foot[0] - self.foot_width / 2., support_foot[1] + self.foot_height / 2.]),
-                np.array([support_foot[0] + self.foot_width / 2., support_foot[1] + self.foot_height / 2.]),
-                np.array([support_foot[0] + self.foot_width / 2., support_foot[1] - self.foot_height / 2.]),
-                np.array([support_foot[0] - self.foot_width / 2., support_foot[1] - self.foot_height / 2.]),
-            ]
+            swing_foot = self.get_swing_foot(i - 1)
+            if self.state_history[i - 1] == "ssp":
+                support_polygon = [
+                    np.array([support_foot[0] - self.foot_width / 2., support_foot[1] + self.foot_height / 2.]),
+                    np.array([support_foot[0] + self.foot_width / 2., support_foot[1] + self.foot_height / 2.]),
+                    np.array([support_foot[0] + self.foot_width / 2., support_foot[1] - self.foot_height / 2.]),
+                    np.array([support_foot[0] - self.foot_width / 2., support_foot[1] - self.foot_height / 2.]),
+                ]
+            else:
+                if self.left_foot[0][0] > self.right_foot[0][0]:
+                    support_polygon = [
+                        np.array([self.left_foot[0][0] - self.foot_width / 2., self.left_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.left_foot[0][0] + self.foot_width / 2., self.left_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.left_foot[0][0] + self.foot_width / 2., self.left_foot[0][1] - self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] + self.foot_width / 2., self.right_foot[0][1] - self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] - self.foot_width / 2., self.right_foot[0][1] - self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] - self.foot_width / 2., self.right_foot[0][1] + self.foot_height / 2.]),
+                    ]
+                elif self.left_foot[0][0] < self.right_foot[0][0]:
+                    support_polygon = [
+                        np.array([self.left_foot[0][0] - self.foot_width / 2., self.left_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.left_foot[0][0] + self.foot_width / 2., self.left_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] + self.foot_width / 2., self.right_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] + self.foot_width / 2., self.right_foot[0][1] - self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] - self.foot_width / 2., self.right_foot[0][1] - self.foot_height / 2.]),
+                        np.array([self.left_foot[0][0] - self.foot_width / 2., self.left_foot[0][1] - self.foot_height / 2.]),
+                    ]
+                else:
+                    support_polygon = [
+                        np.array([self.left_foot[0][0] - self.foot_width / 2., self.left_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.left_foot[0][0] + self.foot_width / 2., self.left_foot[0][1] + self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] + self.foot_width / 2., self.right_foot[0][1] - self.foot_height / 2.]),
+                        np.array([self.right_foot[0][0] - self.foot_width / 2., self.right_foot[0][1] - self.foot_height / 2.]),
+                    ]
 
-            # problem.add_constraint(
-            #     placo.PolygonConstraint.in_polygon_xy(
-            #         lipm.zmp(i, (9.81 / self.z_c) ** 2),
-            #         support_polygon,
-            #         0.05
-            #     )
-            # )
+            problem.add_constraint(
+                placo.PolygonConstraint.in_polygon_xy(
+                    lipm.zmp(i, (9.81 / self.z_c) ** 2),
+                    support_polygon,
+                    self.zmp_margin,
+                )
+            )
 
             problem.add_constraint(
                 lipm.zmp(i, (9.81 / self.z_c) ** 2) == support_foot[:2]
@@ -159,7 +189,7 @@ class Walk:
         if self.t_phase >= self.t_sup:
             self.state = "dsp"
             self.t_phase = 0.
-            self.start_swing_foot = self.get_swing_foot()
+            self.start_swing_foot = self.get_swing_foot(-1)
             self.p_ref = np.delete(self.p_ref, 0, 0)
             # self.update_p_ref()
             return
@@ -179,6 +209,9 @@ class Walk:
         self.p_ref_step.append(self.p_ref[0])
         self.p_ref_step.pop(0) if not self.initial else None
 
+        self.state_history.append("ssp")
+        self.state_history.pop(0) if not self.initial else None
+
         if not self.initial:
             self.run_mpc()
 
@@ -190,10 +223,13 @@ class Walk:
             self.t_phase = 0.
             return
 
-        self.update_foot(self.get_swing_foot(), not self.initial)
+        self.update_foot(self.get_swing_foot(-1), not self.initial)
 
         self.p_ref_step.append(self.p_ref[0])
         self.p_ref_step.pop(0) if not self.initial else None
+
+        self.state_history.append("dsp")
+        self.state_history.pop(0) if not self.initial else None
 
         if not self.initial:
             self.run_mpc()
